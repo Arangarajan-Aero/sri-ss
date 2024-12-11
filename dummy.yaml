@@ -195,3 +195,34 @@ validate_deployment:
     - echo "Validating deployment using curl..."
     - powershell -Command "curl.exe -o response.txt -s -w '%{http_code}' $Env:DEPLOY_TARGET"
     - powershell -Command "$status=(Invoke-WebRequest -Uri $Env:DEPLOY_TARGET -UseBasicParsing); $status.StatusCode | Out-File response.txt"
+
+    
+                                     Dload  Upload   Total   Spent    Left  Speed
+  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0
+100 29.1M  100 29.1M    0     0  18.4M      0  0:00:01  0:00:01 --:--:-- 76.4M
+$ powershell -Command "Expand-Archive -Path dependency-check.zip -DestinationPath dependency-check"
+$ echo "Running OWASP Dependency-Check..."
+Running OWASP Dependency-Check...
+$ dependency-check\bin\dependency-check.bat --scan . --format SARIF --out ${DC_OUTPUT} --project "StatusCenter"
+dependency-check\bin\dependency-check.bat: 
+Line |
+ 337 |  dependency-check\bin\dependency-check.bat --scan . --format SARIF --o …
+     |  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+     | The module 'dependency-check' could not be loaded. For more information, run 'Import-Module dependency-check'.
+
+Uploading artifacts for failed job
+00:01
+Version:      17.5.3
+Git revision: 12030cf4
+Git branch:   17-5-stable
+GO version:   go1.22.7
+Built:        2024-10-31T20:31:10+0000
+OS/Arch:      windows/amd64
+Uploading artifacts...
+Runtime platform                                    arch=amd64 os=windows pid=9048 revision=12030cf4 version=17.5.3
+WARNING: dependency-check-report.json: no matching files. Ensure that the artifact path is relative to the working directory (C:\Gitlab-Runner\builds\t3_r1sLWH\0\ess-software\status-center) 
+ERROR: No files to upload                          
+
+Cleaning up project directory and file based variables
+00:01
+ERROR: Job failed: exit status 1
