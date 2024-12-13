@@ -15,8 +15,9 @@ include:
 stages:
   - lint
   - build
-  - owasp
+  # - owasp
   - sonarqube
+  - quality_and_dependancy-scan
   - quality_and_tests
   - deploy
   - validate_deployment
@@ -55,22 +56,31 @@ build:
       - Web/bin/Release/net8.0/
     expire_in: 1 week
 
-owasp_scan:
-  stage: owasp
-  image:
-    name: owasp/dependency-check:latest
-    entrypoint: [""]
-  script:
-    - echo "Starting OWASP Dependency-Check scan..."
-    - >
-      /usr/share/dependency-check/bin/dependency-check.sh --scan ./ --format "ALL"
-      --project "$CI_PROJECT_NAME" --out ./owasp-report
-  allow_failure: true
-  artifacts:
-    when: always
-    paths:
-      - "./owasp-report/dependency-check-report.json"
-    expire_in: 1 week
+# owasp_scan:
+#   stage: owasp
+#   tags:
+#     - windows
+#   dependencies:
+#     - build
+#   variables:
+#     DC_VERSION: "7.4.1"
+#     DC_OUTPUT: "dependency-check-report.json"
+#   script:
+#     - echo "Setting up OWASP Dependency-Check on Windows..."
+#     - mkdir dependency-check
+#     - curl -L https://github.com/jeremylong/DependencyCheck/releases/download/v${DC_VERSION}/dependency-check-${DC_VERSION}-release.zip -o dependency-check.zip
+#     - powershell -Command "Expand-Archive -Path dependency-check.zip -DestinationPath dependency-check"
+#     - echo "Running OWASP Dependency-Check..."
+#     - java -version
+#     - dependency-check\dependency-check\bin\dependency-check.bat --scan . --format JSON --out ${DC_OUTPUT} --project "StatusCenter"
+#     - mv -Force ${DC_OUTPUT} C:\Temp
+
+  # artifacts:
+  #   paths:
+  #     - ${DC_OUTPUT}
+  #   reports:
+  #     dependency_scanning: ${DC_OUTPUT}
+  #   expire_in: 1 week
 
 sonarqube:
   stage: sonarqube
@@ -78,23 +88,15 @@ sonarqube:
     - windows
   dependencies:
     - build
-    - owasp_scan
+    # - owasp_scan
   script:
     - echo "Starting SonarQube scan..."
-    - dotnet tool install --global dotnet-sonarscanner
-    - dotnet sonarscanner begin /k:Sri.paluvatla_status-center \
-        /d:sonar.login=$SONAR_TOKEN \
-        /d:sonar.host.url=$SONAR_HOST_URL \
-        /d:sonar.organization="ess-software" \
-        /d:sonar.dependencyCheck.reportPath="./owasp-report/dependency-check-report.xml"
+    - dotnet tool install --global dotnet-sonarscanner  
+    - dotnet sonarscanner begin /k:ess-software_status-center /d:sonar.login=$SONAR_TOKEN /d:sonar.host.url=$SONAR_HOST_URL /o:ess-software
     - dotnet build Web/Web.csproj --configuration $BUILD_CONFIGURATION
     - dotnet sonarscanner end /d:sonar.login=$SONAR_TOKEN
     - echo "Pushing OWASP report to SonarQube..."
-    - sonar-scanner \
-        -Dsonar.projectKey="Sri.paluvatla_status-center" \
-        -Dsonar.host.url="$SONAR_HOST_URL" \
-        -Dsonar.login="$SONAR_TOKEN" \
-        -Dsonar.dependencyCheck.reportPaths="./dependency-check-reports/dependency-check-report.json"
+    - dotnet sonarscanner begin /k:ess-software_status-center /d:sonar.login=$SONAR_TOKEN /d:sonar.host.url=$SONAR_HOST_URL /d:sonar.dependencyCheck.reportPaths="C:\Temp\dependency-check-report.json" /o:ess-software
   allow_failure: true
 
 code_quality:
@@ -114,7 +116,7 @@ code_quality:
     expire_in: 1 week
 
 dependency_scan:
-  stage: quality_and_tests
+  stage: quality_and_dependancy-scan
   image:
     name: registry.gitlab.com/gitlab-ci-utils/docker-dependency-check:latest
     entrypoint: [""]
@@ -173,6 +175,7 @@ deploy:
 
 dast:
   stage: dast
+  # Ensure the runner can pull Docker images and run Linux-based containers
   image: registry.gitlab.com/gitlab-org/security-products/dast:latest
   variables:
     DAST_WEBSITE: $DEPLOY_TARGET
@@ -187,6 +190,7 @@ dast:
       dast: gl-dast-report.json
     expire_in: 1 week
 
+
 validate_deployment:
   stage: validate_deployment
   tags:
@@ -195,34 +199,3 @@ validate_deployment:
     - echo "Validating deployment using curl..."
     - powershell -Command "curl.exe -o response.txt -s -w '%{http_code}' $Env:DEPLOY_TARGET"
     - powershell -Command "$status=(Invoke-WebRequest -Uri $Env:DEPLOY_TARGET -UseBasicParsing); $status.StatusCode | Out-File response.txt"
-
-    
-                                     Dload  Upload   Total   Spent    Left  Speed
-  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0
-100 29.1M  100 29.1M    0     0  18.4M      0  0:00:01  0:00:01 --:--:-- 76.4M
-$ powershell -Command "Expand-Archive -Path dependency-check.zip -DestinationPath dependency-check"
-$ echo "Running OWASP Dependency-Check..."
-Running OWASP Dependency-Check...
-$ dependency-check\bin\dependency-check.bat --scan . --format SARIF --out ${DC_OUTPUT} --project "StatusCenter"
-dependency-check\bin\dependency-check.bat: 
-Line |
- 337 |  dependency-check\bin\dependency-check.bat --scan . --format SARIF --o …
-     |  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-     | The module 'dependency-check' could not be loaded. For more information, run 'Import-Module dependency-check'.
-
-Uploading artifacts for failed job
-00:01
-Version:      17.5.3
-Git revision: 12030cf4
-Git branch:   17-5-stable
-GO version:   go1.22.7
-Built:        2024-10-31T20:31:10+0000
-OS/Arch:      windows/amd64
-Uploading artifacts...
-Runtime platform                                    arch=amd64 os=windows pid=9048 revision=12030cf4 version=17.5.3
-WARNING: dependency-check-report.json: no matching files. Ensure that the artifact path is relative to the working directory (C:\Gitlab-Runner\builds\t3_r1sLWH\0\ess-software\status-center) 
-ERROR: No files to upload                          
-
-Cleaning up project directory and file based variables
-00:01
-ERROR: Job failed: exit status 1
