@@ -3,16 +3,27 @@ stages:
 
 dependency_scanning:
   stage: dependency_scanning
-  image: registry.gitlab.com/gitlab-org/security-products/analyzers/dependency-scanning:latest
-  variables:
-    DS_PACKAGE_MANAGER: "nuget"
+  tags:
+    - windows  # Specify that the job should run on a Windows runner
   script:
-    - /analyzer run
+    # Set the required environment variable for NuGet package manager
+    - $env:DS_PACKAGE_MANAGER="nuget"
+    
+    # Restore dependencies and build the project
+    - dotnet restore
+    - dotnet build
+
+    # Run Dependency Scanning with the correct tool for .NET projects
+    - nuget install GitLab.DependencyScanning  # Use NuGet to install the GitLab dependency scanning tool
+    - gitlab-dependency-scanning --output=gl-dependency-scanning-report.json
+
   artifacts:
     reports:
-      dependency_scanning: gl-dependency-scanning-report.json
-    expire_in: 1 week
-  allow_failure: true
+      dependency_scanning: gl-dependency-scanning-report.json  # Upload the report as an artifact
+    expire_in: 1 week  # Set the expiration time for the report artifacts
+
+  allow_failure: true  # Allow the job to fail without stopping the pipeline
+
 
 
 
