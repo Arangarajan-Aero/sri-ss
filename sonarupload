@@ -13,3 +13,21 @@ dependency_scanning:
       dependency_scanning: gl-dependency-scanning-report.json
     expire_in: 1 week
   allow_failure: true
+
+
+
+dependency_scan:
+  stage: quality_and_dependency_scan
+  image:
+    name: registry.gitlab.com/gitlab-org/security-products/analyzers/dependency-scanning:latest
+    entrypoint: [""]
+  variables:
+    DS_PACKAGE_MANAGER: "nuget"  # Specify NuGet as the package manager for .NET
+  script:
+    # Run Dependency Scanning
+    - /analyzer run
+  allow_failure: true  # Allow the pipeline to continue if this job fails
+  artifacts:
+    reports:
+      dependency_scanning: gl-dependency-scanning-report.json
+    expire_in: 1 week
