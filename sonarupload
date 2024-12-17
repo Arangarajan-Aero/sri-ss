@@ -31,3 +31,29 @@ dependency_scan:
     reports:
       dependency_scanning: gl-dependency-scanning-report.json
     expire_in: 1 week
+
+
+
+
+
+
+stages:
+  - dependency_scanning
+
+dependency_scanning:
+  stage: dependency_scanning
+  image: mcr.microsoft.com/dotnet/sdk:6.0  # Use the .NET SDK image to build your project
+  variables:
+    DS_PACKAGE_MANAGER: "nuget"  # Specify NuGet as the package manager
+  script:
+    # Restore dependencies and run the analyzer
+    - dotnet restore  # Restore NuGet packages
+    - dotnet build    # Build the project
+    - dotnet tool install --global GitLab.DependencyScanning # Install the dependency scanning tool
+    - gitlab-dependency-scanning --output=gl-dependency-scanning-report.json # Run dependency scanning
+  artifacts:
+    reports:
+      dependency_scanning: gl-dependency-scanning-report.json  # Specify the location of the report
+    expire_in: 1 week  # Set an expiration for the report artifacts
+  allow_failure: true  # Allow the job to fail without stopping the pipeline
+
